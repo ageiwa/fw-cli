@@ -18,31 +18,35 @@ func readCmd(word *string, files *[]string) {
 	} 
 }
 
-func findWord(pattern *regexp.Regexp, data []byte) (loc []int, err error) {
+func findWord(pattern *regexp.Regexp, data []byte) (loc [][]int, err error) {
 	scanner := bufio.NewScanner(strings.NewReader(string(data)))
 	nl := 0
+
+	fLoc := [][]int{}
 
 	for scanner.Scan() {
 		nl++
 
 		line := scanner.Text()
-		loc := pattern.FindIndex([]byte(line))
+		loc := pattern.FindAllIndex([]byte(line), -1)
 
 		if len(loc) == 0 {
 			continue
 		}
 
-		startByte := loc[0]
-		startRune := []rune(line[:startByte])
+		for _, locEntry := range loc {
+			startByte := locEntry[0]
+			startRune := []rune(line[:startByte])
 
-		return []int{ nl, len(startRune) }, nil
+			fLoc = append(fLoc, []int{ nl, len(startRune) })
+		}
 	}
 
 	if err := scanner.Err(); err != nil {
-		return loc, err
+		return fLoc, err
 	}
 
-	return loc, nil
+	return fLoc, nil
 }
 
 func main() {
@@ -51,7 +55,7 @@ func main() {
 
 	readCmd(&word, &files)
 
-	pattern := regexp.MustCompile(word)
+	pattern := regexp.MustCompile("(?i)" + word)
 
 	for _, file := range files {
 		data, err := os.ReadFile(file)
@@ -70,6 +74,8 @@ func main() {
 			continue
 		}
 
-		fmt.Printf("Find '%s' on line %d, column %d in %s\n", word, loc[0], loc[1], file)
+		for _, locEntry := range loc {
+			fmt.Printf("Find '%s' on line %d, column %d in %s\n", word, locEntry[0], locEntry[1], file)
+		}
 	}
 }
