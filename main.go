@@ -6,6 +6,7 @@ import (
 	"os"
 	"regexp"
 	"strings"
+	"sync"
 )
 
 func readCmd(word *string, files *[]string, byDir *bool, dir *string) {
@@ -53,41 +54,96 @@ func findWord(pattern *regexp.Regexp, data []byte) (loc [][]int, err error) {
 	return fLoc, nil
 }
 
-func handleFile(pattern *regexp.Regexp, word string, filePath string) (res []string, err error) {
+func handleFile(pattern *regexp.Regexp, filePath string) (loc [][]int, err error) {
 	data, err := os.ReadFile(filePath)
-	resList := []string{}
+	fLoc := [][]int{}
 
 	if err != nil {
-		return resList, err
+		return fLoc, err
 	}
 
-	loc, err := findWord(pattern, data)
+	fLoc, err = findWord(pattern, data)
 
 	if err != nil {
-		return resList, err
+		return fLoc, err
 	} else if len(loc) == 0 {
-		return resList, nil
+		return fLoc, nil
 	}
 
-	for _, locEntry := range loc {
-		result := fmt.Sprintf("Find '%s' on line %d, column %d in %s\n", word, locEntry[0], locEntry[1], filePath)
-		resList = append(resList, result)
+	return fLoc, nil
+}
+
+func toDir(pattern *regexp.Regexp, word string, wg *sync.WaitGroup, dir string) {
+	dirEntrys, err := os.ReadDir(dir)
+
+	if err != nil {
+		// fmt.Println(err.Error())
+		return
 	}
 
-	return resList, nil
+	for _, dirEntry := range dirEntrys {
+		if dirEntry.IsDir() {
+			toDir(pattern, word, wg, dir + dirEntry.Name() + "/")
+			continue
+		}
+
+		wg.Add(1)
+
+		go func() {
+			defer wg.Done()
+
+			filePath := dir + dirEntry.Name()
+			loc, err := handleFile(pattern, filePath)
+
+			if err != nil {
+				fmt.Println(err.Error())
+				return
+			}
+
+			for _, locEntry := range loc {
+				fmt.Printf("Find '%s' on line %d, column %d in %s\n", word, locEntry[0], locEntry[1], filePath)
+			}
+		}()
+	}
 }
 
 func main() {
 	word := "май"
-	files := []string{"text1.txt", "text2.txt", "text3.txt"}
+	files := []string{}
 	dir := "/"
 	byDir := false
+	// lvl := 1
 
 	readCmd(&word, &files, &byDir, &dir)
 
 	pattern := regexp.MustCompile("(?i)" + word)
 
-	for _, file := range files {
-		handleFile(pattern, word, file)
+	wg := sync.WaitGroup{}
+
+	if byDir {
+		toDir(pattern, word, &wg, dir)
+		wg.Wait()
+		return
 	}
+
+	wg.Add(len(files))
+
+	for _, file := range files {
+		go func() {
+			defer wg.Done()
+
+			loc, err := handleFile(pattern, file)
+
+			if err != nil {
+				fmt.Println(err.Error())
+				return
+			}
+
+			for _, locEntry := range loc {
+				fmt.Printf("Find '%s' on line %d, column %d in %s\n", word, locEntry[0], locEntry[1], file)
+			}
+		}()
+	}
+
+	wg.Wait()
 }
