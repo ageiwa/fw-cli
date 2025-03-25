@@ -77,7 +77,7 @@ func toDir(pattern *regexp.Regexp, word string, wg *sync.WaitGroup, dir string) 
 	dirEntrys, err := os.ReadDir(dir)
 
 	if err != nil {
-		// fmt.Println(err.Error())
+		fmt.Printf("Couldn't read directory: %s\n", dir)
 		return
 	}
 
@@ -96,7 +96,7 @@ func toDir(pattern *regexp.Regexp, word string, wg *sync.WaitGroup, dir string) 
 			loc, err := handleFile(pattern, filePath)
 
 			if err != nil {
-				fmt.Println(err.Error())
+				fmt.Printf("Couldn't process the file: %s\n", filePath)
 				return
 			}
 
@@ -112,7 +112,6 @@ func main() {
 	files := []string{}
 	dir := "/"
 	byDir := false
-	// lvl := 1
 
 	readCmd(&word, &files, &byDir, &dir)
 
