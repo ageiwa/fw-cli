@@ -1,3 +1,3 @@
-hello world
+
 main golang привет
 мир труд май

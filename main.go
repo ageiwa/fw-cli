@@ -18,26 +18,7 @@ func readCmd(word *string, files *[]string) {
 	} 
 }
 
-func findWord(data []byte) {
-	for _, b := range data {
-		fmt.Println(b)
-	}
-}
-
-func main() {
-	word := "май"
-	files := []string{ "text1.txt" }
-
-	readCmd(&word, &files)
-
-	data, err := os.ReadFile(files[0])
-
-	if err != nil {
-		fmt.Println(err.Error())
-		return
-	}
-
-	pattern := regexp.MustCompile(word)
+func findWord(pattern *regexp.Regexp, data []byte) (loc []int, err error) {
 	scanner := bufio.NewScanner(strings.NewReader(string(data)))
 	nl := 0
 
@@ -54,10 +35,41 @@ func main() {
 		startByte := loc[0]
 		startRune := []rune(line[:startByte])
 
-		fmt.Printf(`Find "%s" on line %d, column %d`, word, nl, len(startRune))
+		return []int{ nl, len(startRune) }, nil
 	}
 
 	if err := scanner.Err(); err != nil {
-		fmt.Println(err.Error())
+		return loc, err
+	}
+
+	return loc, nil
+}
+
+func main() {
+	word := "май"
+	files := []string{ "text1.txt", "text2.txt", "text3.txt" }
+
+	readCmd(&word, &files)
+
+	pattern := regexp.MustCompile(word)
+
+	for _, file := range files {
+		data, err := os.ReadFile(file)
+
+		if err != nil {
+			fmt.Println(err.Error())
+			continue
+		}
+
+		loc, err := findWord(pattern, data)
+
+		if err != nil {
+			fmt.Println(err.Error())
+			continue
+		} else if len(loc) == 0 {
+			continue
+		}
+
+		fmt.Printf("Find '%s' on line %d, column %d in %s\n", word, loc[0], loc[1], file)
 	}
 }
